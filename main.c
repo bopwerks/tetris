@@ -7,10 +7,10 @@
 #define NELEM(a) ((sizeof(a)/sizeof(a[0])))
 
 enum {
-    BLOCK_SIZE = 20, /* Side of block */
-    BLOCK_PADDING = 3, /* Spacing between blocks */
-    NXBLOCKS = 20,
-    NYBLOCKS = 30,
+    BLOCK_SIZE = 30, /* Side of block */
+    BLOCK_PADDING = 2, /* Spacing between blocks */
+    NXBLOCKS = 10,
+    NYBLOCKS = 20,
     MAX_WIDTH = NXBLOCKS * BLOCK_SIZE + (NXBLOCKS-1) * BLOCK_PADDING, /* Width of game window */
     MAX_HEIGHT = NYBLOCKS * BLOCK_SIZE + (NYBLOCKS-1) * BLOCK_PADDING, /* Height of game window */
     FALL_SPEED = 2,
@@ -35,35 +35,10 @@ min(int a, int b)
     return (a < b) ? a : b;
 }
 
-/* Rotate a tetramino 90 degrees counter-clockwise. */
-static void
-rotate(SDL_Point tetra[4])
+static int
+max(int a, int b)
 {
-    int i;
-    int x;
-    int y;
-    int minx;
-    int miny;
-
-    /* Rotate blocks and record bottom-left-most block position. */
-    for (i = 0; i < 4; ++i) {
-        x = -tetra[i].y;
-        y = tetra[i].x;
-        if (i == 0) {
-            minx = x;
-            miny = y;
-        } else {
-            minx = min(minx, x);
-            miny = min(miny, y);
-        }
-        tetra[i].x = x;
-        tetra[i].y = y;
-    }
-    /* Shift tetramino so bottom-left block is at (0,0). */
-    /* for (i = 0; i < 4; ++i) { */
-    /*     tetra[i].x -= minx; */
-    /*     tetra[i].y -= miny; */
-    /* } */
+    return (a > b) ? a : b;
 }
 
 static SDL_Point tetras[][4] = {
@@ -114,6 +89,7 @@ struct Game {
 };
 typedef struct Game Game;
 
+static void rotate(Game *g);
 static int collidesp(Game *g, int dx, int dy);
 static int clear(SDL_Renderer *r);
 static int draw(SDL_Renderer *r, Game *g);
@@ -176,7 +152,7 @@ main(void)
                         g.p.y += 1;
                     break;
                 case SDLK_UP:
-                    rotate(g.tetra);
+                    rotate(&g);
                     break;
                 case SDLK_LEFT:
                     if (!collidesp(&g, -1, 0))
@@ -254,6 +230,41 @@ clear(SDL_Renderer *r)
     if (rc != 0)
         return rc;
     return 0;
+}
+
+/* Rotate a tetramino 90 degrees counter-clockwise. */
+static void
+rotate(Game *g)
+{
+    int i;
+    int x;
+    int y;
+    int minx;
+    int maxx;
+
+    assert(g != NULL);
+
+    /* Rotate blocks and record bottom-left-most block position. */
+    for (i = 0; i < 4; ++i) {
+        x = -g->tetra[i].y;
+        y = g->tetra[i].x;
+        if (i == 0) {
+            minx = maxx = x;
+            /* miny = g->p.y + g->p.y + y; */
+        } else {
+            minx = min(minx, x);
+            maxx = max(maxx, x);
+            /* miny = min(miny, g->o.y + g->p.y + y); */
+        }
+        g->tetra[i].x = x;
+        g->tetra[i].y = y;
+    }
+    if (g->p.x + minx < 0) {
+        /* g->p.x + minx < 0 */
+        g->p.x = -minx;
+    } else if (NXBLOCKS <= g->p.x + maxx) {
+        g->p.x = NXBLOCKS - maxx - 1;
+    }
 }
 
 static int
@@ -349,7 +360,7 @@ reset(Game *g)
     /* Set score */
     SDL_Log("Resetting the score");
     g->score = 0;
-    g->speed = 1;
+    g->speed = FALL_SPEED;
 }
 
 static void
