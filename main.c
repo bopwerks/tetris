@@ -29,18 +29,6 @@ enum Color {
     NCOLORS
 };
 
-static int
-min(int a, int b)
-{
-    return (a < b) ? a : b;
-}
-
-static int
-max(int a, int b)
-{
-    return (a > b) ? a : b;
-}
-
 static SDL_Point tetras[][4] = {
     /* ---- */
     {{ -2, 0 }, { -1, 0 }, { 0, 0 }, { 1, 0 }},
@@ -95,6 +83,10 @@ static int clear(SDL_Renderer *r);
 static int draw(SDL_Renderer *r, Game *g);
 static void reset(Game *g);
 static void step(Game *g);
+static void ensurepos(Game *g);
+static int min(int a, int b);
+static int max(int a, int b);
+static void newtetra(Game *g);
 
 int
 main(void)
@@ -259,13 +251,45 @@ rotate(Game *g)
         g->tetra[i].x = x;
         g->tetra[i].y = y;
     }
+    ensurepos(g);
+    /* if (g->p.x + minx < 0) { */
+    /*     /\* g->p.x + minx < 0 *\/ */
+    /*     g->p.x = -minx; */
+    /* } else if (NXBLOCKS <= g->p.x + maxx) { */
+    /*     g->p.x = NXBLOCKS - maxx - 1; */
+    /* } */
+}
+
+static void
+ensurepos(Game *g)
+{
+    int i;
+    int minx;
+    int maxx;
+    int miny;
+    int maxy;
+
+    minx = maxx = g->tetra[0].x;
+    miny = maxy = g->tetra[0].y;
+    for (i = 0; i < 4; ++i) {
+        minx = min(minx, g->tetra[i].x);
+        maxx = max(maxx, g->tetra[i].x);
+        miny = min(miny, g->tetra[i].y);
+        maxy = max(maxy, g->tetra[i].y);
+    }
+    /* Correct x position */
     if (g->p.x + minx < 0) {
-        /* g->p.x + minx < 0 */
         g->p.x = -minx;
     } else if (NXBLOCKS <= g->p.x + maxx) {
         g->p.x = NXBLOCKS - maxx - 1;
     }
-}
+    /* Correct y position */
+    if (g->p.y + miny < 0) {
+        g->p.y = -miny;
+    } else if (NYBLOCKS <= g->p.y + maxy) {
+        g->p.y = NYBLOCKS - maxy - 1;
+    }
+}    
 
 static int
 drawblk(SDL_Renderer *r, int bx, int by, enum Color c)
@@ -318,8 +342,6 @@ draw(SDL_Renderer *r, Game *g)
         xoff = g->o.x + g->p.x;
         yoff = g->o.y + g->p.y;
         for (i = 0; i < 4; ++i) {
-            /* SDL_Log("xoff = %d yoff = %d x = %d y = %d", */
-            /*         xoff, yoff, xoff + g->tetra[i].x, yoff + g->tetra[i].y); */
             rc = drawblk(r, xoff + g->tetra[i].x, yoff + g->tetra[i].y, g->color);
             if (rc != 0)
                 return rc;
@@ -350,12 +372,8 @@ reset(Game *g)
     for (i = 0; i < NYBLOCKS; ++i) {
         g->blocks[i] = &g->store[i][0];
     }
-    for (i = 0; i < 4; ++i)
-        g->tetra[i] = tetras[0][i];
     g->o.x = g->o.y = 0;
-    g->p.x = g->p.y = 5;
-    g->color = VIOLET;
-    g->hastetra = 1;
+    newtetra(g);
 
     /* Set score */
     SDL_Log("Resetting the score");
@@ -374,8 +392,11 @@ newtetra(Game *g)
     for (i = 0; i < 4; ++i) {
         g->tetra[i] = tetras[j][i];
     }
-    g->p.x = g->p.y = 5;
+    g->p.x = NXBLOCKS / 2;
+    g->p.y = -10;
+    ensurepos(g);
     g->color = 1 + rand() % (NCOLORS-1);
+    g->hastetra = 1;
 }
 
 static int
@@ -458,4 +479,16 @@ step(Game *g)
         g->p.y += 1;
     }
     assert(g != NULL);
+}
+
+static int
+min(int a, int b)
+{
+    return (a < b) ? a : b;
+}
+
+static int
+max(int a, int b)
+{
+    return (a > b) ? a : b;
 }
